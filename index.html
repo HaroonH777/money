@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f5f4a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Money Dashboard</title>
+<style>
+:root{--bg:#f3f5f4;--card:#fff;--ink:#1b2220;--mut:#66706b;--line:#dfe4e1;--ok:#2f8f5b;--warn:#d98e1f;--bad:#c9442f;--acc:#1f5f4a;--track:#e8ece9}
+@media (prefers-color-scheme:dark){:root{--bg:#111513;--card:#1a1f1c;--ink:#eceee9;--mut:#9aa39d;--line:#2a312d;--ok:#4fbf85;--warn:#e8a93a;--bad:#e46a55;--acc:#2f8a6c;--track:#2a312d}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.4;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+.w{max-width:760px;margin:0 auto;padding:14px}
+h1{font-size:19px;margin:0}h2{font-size:15px;margin:0 0 10px}
+.sub,.note{color:var(--mut);font-size:13px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.nav{display:flex;align-items:center;gap:6px}
+.nav b{min-width:128px;text-align:center}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media(min-width:620px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.k{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px}
+.k span{font-size:12px;color:var(--mut)}.k b{display:block;font-size:20px;margin-top:2px}
+input,select,button{font:inherit;color:inherit}
+input,select{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px;min-width:0;width:100%}
+button{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:9px 14px;cursor:pointer}
+button.g{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.env{padding:10px 0;border-top:1px solid var(--line)}.env:first-of-type{border-top:0}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.nm{font-weight:600;border-color:transparent;background:transparent;padding:4px}
+.bi{width:92px;text-align:right}
+.bar{position:relative;height:10px;background:var(--track);border-radius:6px;margin:8px 0 4px}
+.fill{height:100%;border-radius:6px}
+.pace{position:absolute;top:-3px;width:2px;height:16px;background:var(--ink);opacity:.45}
+.f{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.f .w2{grid-column:1/3}
+@media(min-width:620px){.f{grid-template-columns:130px 110px 1fr 1fr auto}.f .w2{grid-column:auto}}
+.tx{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.tx:first-of-type{border-top:0}
+.x{cursor:pointer;color:var(--mut);margin-left:10px;padding:2px 6px}
+.tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:9px;background:var(--track);color:var(--mut);margin-left:6px}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="w">
+  <div class="top">
+    <h1>Money Dashboard</h1>
+    <div class="nav"><button class="g" onclick="mv(-1)" aria-label="Previous month">‹</button><b id="month"></b><button class="g" id="nx" onclick="mv(1)" aria-label="Next month">›</button></div>
+  </div>
+  <div class="card row"><label for="inc">Monthly income (Rs)</label><input id="inc" type="number" inputmode="numeric" class="bi" style="width:120px" onchange="setInc(this.value)"></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="card"><h2>Envelopes <span class="sub" id="alloc"></span></h2><div id="envs"></div>
+    <div class="acts" style="margin-top:10px"><button class="g" onclick="addC()">Add envelope</button></div>
+    <div class="note" style="margin-top:8px">The black tick marks where spending should be by today's date. Edit a name or budget directly.</div></div>
+  <div class="card"><h2>Add expense</h2>
+    <div class="f"><input type="date" id="dt" aria-label="Date"><input type="number" inputmode="decimal" id="amt" placeholder="Amount"><select id="cat" class="w2" aria-label="Envelope"></select><input type="text" id="nt" class="w2" placeholder="Note (optional)"><button class="w2" onclick="addTx()">Add expense</button></div></div>
+  <div class="card"><h2>Transactions this month</h2><div id="txs"></div></div>
+  <div class="card"><h2>Backup</h2>
+    <div class="note" id="bk" style="margin-bottom:8px"></div>
+    <div class="acts"><button onclick="exportData()">Save backup file</button><button class="g" onclick="$('#imp').click()">Restore from backup</button><button class="g" onclick="wipe()">Erase everything</button></div>
+    <input type="file" id="imp" accept="application/json,.json" hidden onchange="importData(this)">
+    <div class="note" style="margin-top:8px">Your data lives only on this phone. If you clear the app's data or lose the phone, a backup file is the only way to get it back.</div></div>
+</div>
+<script>
+const KEY='money-app-v1',$=s=>document.querySelector(s);
+const now=new Date(),CY=now.getFullYear(),CM=now.getMonth(),CD=now.getDate();
+let VY=CY,VM=CM;
+const p2=n=>String(n).padStart(2,'0'),ym=(y,m)=>y+'-'+p2(m+1),today=()=>`${CY}-${p2(CM+1)}-${p2(CD)}`;
+const fmt=n=>'Rs '+Math.round(n).toLocaleString('en-US');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const starter=()=>({income:50000,lastBackup:null,tx:[],cats:[
+ {id:'sav',name:'Savings (pay yourself first)',budget:5000},{id:'hou',name:'Housing & utilities',budget:18000},
+ {id:'foo',name:'Food & groceries',budget:10000},{id:'tra',name:'Transport & fuel',budget:5000},
+ {id:'fam',name:'Family & obligations',budget:4000},{id:'biz',name:'Growth (learning, SAT, YTAP)',budget:2000},
+ {id:'per',name:'Personal & misc',budget:3000},{id:'cha',name:'Charity / Zakat',budget:1000},{id:'buf',name:'Buffer',budget:2000}]});
+let S=null;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S||!Array.isArray(S.cats)||!Array.isArray(S.tx))S=starter();
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){alert('Could not save on this device. Free some storage and try again.')}};
+const isCur=()=>VY===CY&&VM===CM;
+const mtx=()=>S.tx.filter(t=>t.date.startsWith(ym(VY,VM)));
+const spent=id=>mtx().filter(t=>t.cat===id).reduce((a,t)=>a+t.amt,0);
+function render(){
+ const dim=new Date(VY,VM+1,0).getDate(),D=isCur()?CD:dim,left=isCur()?dim-CD+1:0;
+ $('#month').textContent=new Date(VY,VM,1).toLocaleString('en',{month:'long',year:'numeric'});
+ $('#nx').disabled=isCur();$('#nx').style.opacity=isCur()?.35:1;
+ $('#inc').value=S.income;
+ const tot=mtx().reduce((a,t)=>a+t.amt,0),rem=S.income-tot;
+ const unspent=S.cats.reduce((a,c)=>a+Math.max(0,c.budget-spent(c.id)),0),alloc=S.cats.reduce((a,c)=>a+c.budget,0);
+ $('#kpis').innerHTML=`<div class="k"><span>Income</span><b>${fmt(S.income)}</b></div>
+ <div class="k"><span>Spent</span><b>${fmt(tot)}</b></div>
+ <div class="k"><span>Remaining</span><b style="color:${rem<0?'var(--bad)':'var(--ok)'}">${fmt(rem)}</b></div>
+ <div class="k"><span>Safe per day${isCur()?' ('+left+' days left)':''}</span><b>${isCur()?fmt(unspent/left):'—'}</b></div>`;
+ const d=S.income-alloc;
+ $('#alloc').textContent=d===0?'— every rupee has a job':d>0?'— '+fmt(d)+' not yet assigned':'— over-assigned by '+fmt(-d);
+ $('#envs').innerHTML=S.cats.map(c=>{const s=spent(c.id),r=c.budget?s/c.budget:(s?2:0),col=r>1?'var(--bad)':r>.9?'var(--warn)':'var(--ok)';
+  return `<div class="env"><div class="row"><input class="nm" value="${esc(c.name)}" aria-label="Envelope name" onchange="setN('${c.id}',this.value)"><span class="row"><input class="bi" type="number" inputmode="numeric" value="${c.budget}" aria-label="Budget" onchange="setB('${c.id}',this.value)"><span class="x" onclick="delC('${c.id}')" title="Remove envelope">✕</span></span></div>
+  <div class="bar"><div class="fill" style="width:${Math.min(100,r*100)}%;background:${col}"></div>${isCur()?`<div class="pace" style="left:${D/dim*100}%"></div>`:''}</div>
+  <div class="sub">${fmt(s)} spent · <b style="color:${col}">${c.budget-s>=0?fmt(c.budget-s)+' left':fmt(s-c.budget)+' over'}</b></div></div>`}).join('')||'<div class="sub">No envelopes yet. Add one to start.</div>';
+ const sel=$('#cat'),v=sel.value;sel.innerHTML=S.cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');if(v)sel.value=v;
+ const nm=Object.fromEntries(S.cats.map(c=>[c.id,c.name]));
+ $('#txs').innerHTML=mtx().slice().sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).map(t=>
+  `<div class="tx"><span>${t.date.slice(8)}/${t.date.slice(5,7)} · ${esc(t.note||'No note')}<span class="tag">${esc(nm[t.cat]||'Removed envelope')}</span></span><span>${fmt(t.amt)}<span class="x" onclick="delTx(${t.id})" title="Delete">✕</span></span></div>`).join('')||'<div class="sub">No expenses this month yet. Add your first one above.</div>';
+ $('#bk').textContent=S.lastBackup?'Last backup: '+S.lastBackup+'.':'No backup saved yet. Save one after your first week of entries.';
+}
+function mv(n){const d=new Date(VY,VM+n,1);if(d>new Date(CY,CM,1))return;VY=d.getFullYear();VM=d.getMonth();$('#dt').value=isCur()?today():ym(VY,VM)+'-01';render()}
+function setInc(v){S.income=Math.max(0,+v||0);save();render()}
+function setB(id,v){S.cats.find(c=>c.id===id).budget=Math.max(0,+v||0);save();render()}
+function setN(id,v){S.cats.find(c=>c.id===id).name=v.trim()||'Untitled';save();render()}
+function addC(){const n=prompt('Name of the new envelope?');if(!n||!n.trim())return;S.cats.push({id:'c'+Date.now(),name:n.trim(),budget:0});save();render()}
+function delC(id){if(S.tx.some(t=>t.cat===id)){alert('This envelope has expenses recorded, so it can\'t be removed. Rename it instead.');return}if(!confirm('Remove this envelope?'))return;S.cats=S.cats.filter(c=>c.id!==id);save();render()}
+function addTx(){const a=+$('#amt').value,dt=$('#dt').value||today();if(!a||a<=0){alert('Enter an amount above zero.');return}if(!S.cats.length){alert('Add an envelope first.');return}
+ S.tx.push({id:Date.now(),cat:$('#cat').value,amt:a,note:$('#nt').value.trim(),date:dt});$('#amt').value='';$('#nt').value='';
+ const y=+dt.slice(0,4),m=+dt.slice(5,7)-1;VY=y;VM=m;save();render()}
+function delTx(id){S.tx=S.tx.filter(t=>t.id!==id);save();render()}
+function exportData(){try{S.lastBackup=today();save();const b=new Blob([JSON.stringify(S,null,1)],{type:'application/json'}),a=document.createElement('a');
+ a.href=URL.createObjectURL(b);a.download='money-backup-'+today()+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),3000);render()}catch(e){alert('Backup failed. Try again.')}}
+function importData(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);
+ if(typeof d.income!=='number'||!Array.isArray(d.cats)||!Array.isArray(d.tx))throw 0;
+ if(!confirm('Replace everything in the app with this backup?'))return;S=d;save();render()}catch(e){alert('That file is not a valid backup.')}inp.value=''};r.readAsText(f)}
+function wipe(){if(!confirm('Erase all entries and settings on this phone? This cannot be undone.'))return;if(!confirm('Last check: have you saved a backup?'))return;S=starter();save();render()}
+$('#dt').value=today();render();
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script>
+</body>
+</html>
